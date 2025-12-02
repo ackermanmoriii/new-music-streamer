@@ -2,673 +2,271 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="icon" href="data:,">
-    <title>Streamer</title>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,700;1,300&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Downloader</title>
     <style>
-        :root {
-            /* Ruby on Rails & New Yorker Palette */
-            --bg-color: #FAFAF9;       /* Creamy paper background */
-            --text-primary: #121212;   /* Ink black */
-            --text-secondary: #555555; /* Pencil gray */
-            --accent: #CC0000;         /* Rails Red */
-            --border-color: #121212;   /* Sharp borders */
-            --card-bg: #FFFFFF;        /* Pure white cards */
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            background-color: var(--bg-color); 
-            color: var(--text-primary); 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            padding-bottom: 140px; 
-        }
-
-        h1, h2, h3 { font-family: 'Merriweather', serif; }
-
-        /* Header */
-        header {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
-            position: sticky;
-            top: 0;
-            background-color: rgba(250, 250, 249, 0.98);
-            border-bottom: 2px solid var(--border-color);
-            z-index: 100;
         }
-
-        .brand {
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
             text-align: center;
-            font-size: 24px;
-            margin-bottom: 15px;
-            font-style: italic;
-            font-weight: 700;
-            color: var(--accent);
+            margin-bottom: 30px;
+            font-size: 28px;
         }
-
-        .search-container { 
-            display: flex; 
-            gap: 0; 
-            max-width: 600px; 
-            margin: 0 auto; 
-            border: 2px solid var(--border-color); 
-            border-radius: 4px; 
-            overflow: hidden; 
+        .search-box {
+            display: flex;
+            margin-bottom: 30px;
         }
-        
         input[type="text"] {
-            flex-grow: 1;
-            padding: 12px 15px;
-            border: none;
-            background-color: white;
-            color: var(--text-primary);
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px 0 0 10px;
             font-size: 16px;
             outline: none;
-            font-family: 'Merriweather', serif;
         }
-
-        button.search-btn {
-            background-color: var(--text-primary);
+        input[type="text"]:focus {
+            border-color: #667eea;
+        }
+        button {
+            background: #667eea;
             color: white;
             border: none;
-            padding: 0 25px;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: background 0.2s;
-            min-width: 60px;
-        }
-        
-        button.search-btn:hover { background-color: var(--accent); }
-        button.search-btn:disabled { 
-            background-color: #888; 
-            cursor: not-allowed; 
-        }
-
-        /* Results List */
-        .results { 
-            max-width: 600px; 
-            margin: 30px auto; 
-            padding: 0 15px; 
-            min-height: 200px;
-        }
-        
-        .track-card {
-            display: flex;
-            align-items: center;
-            background-color: var(--card-bg);
-            margin-bottom: 10px;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-left: 4px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-radius: 4px;
-        }
-
-        .track-card:hover { 
-            border-color: var(--text-primary); 
-            transform: translateX(5px); 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .track-card.playing { 
-            border-left: 4px solid var(--accent); 
-            background-color: #fff0f0; 
-        }
-
-        .track-img { 
-            width: 50px; 
-            height: 50px; 
-            object-fit: cover; 
-            margin-right: 15px; 
-            border: 1px solid #eee; 
-            border-radius: 3px;
-        }
-        
-        .track-info { 
-            flex-grow: 1; 
-            overflow: hidden; 
-            min-width: 0;
-        }
-        .track-title { 
-            font-weight: 600; 
-            font-size: 15px; 
-            margin-bottom: 4px; 
-            font-family: 'Merriweather', serif; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .track-artist { 
-            font-size: 13px; 
-            color: var(--text-secondary); 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .track-duration { 
-            font-size: 12px; 
-            font-weight: bold; 
-            margin-left: 10px; 
-            color: var(--accent);
-            white-space: nowrap;
-        }
-
-        /* Message Boxes */
-        .message-box {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--text-secondary);
-        }
-        
-        .error-box {
-            background-color: #fff0f0;
-            border: 1px solid #ffcccc;
-            border-radius: 4px;
-            padding: 20px;
-            margin: 20px auto;
-            max-width: 600px;
-            color: #cc0000;
-            text-align: center;
-        }
-
-        /* Bottom Player */
-        .player-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: white;
-            padding: 15px 20px;
-            border-top: 3px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 200;
-            transform: translateY(100%);
-            transition: transform 0.3s ease-out;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
-        }
-
-        .player-bar.active { transform: translateY(0); }
-
-        .player-info { 
-            display: flex; 
-            align-items: center; 
-            width: 40%; 
-            min-width: 0;
-        }
-        .player-text { 
-            overflow: hidden; 
-            min-width: 0;
-        }
-        .player-title { 
-            font-size: 14px; 
-            font-weight: bold; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            font-family: 'Merriweather', serif; 
-        }
-        .player-artist { 
-            font-size: 11px; 
-            color: var(--accent); 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .controls { 
-            display: flex; 
-            align-items: center; 
-            gap: 8px; 
-            flex-wrap: nowrap;
-        }
-        
-        .btn-ctrl {
-            background: none;
-            border: 2px solid var(--border-color);
-            color: var(--border-color);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 0 30px;
+            border-radius: 0 10px 10px 0;
             cursor: pointer;
             font-size: 16px;
-            transition: all 0.2s;
-            flex-shrink: 0;
+            font-weight: bold;
         }
-
-        .btn-ctrl:hover { 
-            background-color: var(--border-color); 
-            color: white; 
+        button:hover {
+            background: #5a67d8;
         }
-        .btn-ctrl.active { 
-            background-color: var(--accent); 
-            border-color: var(--accent); 
-            color: white; 
+        .results {
+            margin-top: 20px;
         }
-        .btn-ctrl:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .song-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: transform 0.2s;
         }
-
-        .play-btn { 
-            width: 50px; 
-            height: 50px; 
-            font-size: 20px; 
+        .song-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
-        
-        /* Action Buttons */
-        .btn-action {
-             border-radius: 4px;
-             width: auto;
-             padding: 0 10px;
-             font-size: 14px;
+        .thumbnail {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-right: 15px;
         }
-
-        /* Loading Spinner */
-        .loader {
-            border: 3px solid #eee;
-            border-top: 3px solid var(--accent);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            display: none;
-            margin: 30px auto;
+        .song-info {
+            flex: 1;
         }
-        
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
+        .song-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
         }
-
-        audio { display: none; }
-
-        /* Mobile optimizations */
-        @media (max-width: 600px) {
-            .player-info { width: 35%; }
-            .controls { gap: 4px; }
-            .btn-ctrl { width: 36px; height: 36px; }
-            .play-btn { width: 44px; height: 44px; }
-            .player-bar { padding: 12px 15px; }
+        .song-artist {
+            color: #666;
+            font-size: 14px;
         }
-
-        @media (max-width: 400px) {
-            .player-info { width: 30%; }
-            .btn-ctrl { width: 32px; height: 32px; font-size: 14px; }
-            .play-btn { width: 40px; height: 40px; font-size: 18px; }
+        .download-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .download-btn:hover {
+            background: #38a169;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .instructions {
+            background: #e6fffa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #234e52;
         }
     </style>
 </head>
 <body>
-
-    <header>
-        <div class="brand">The Daily Streamer</div>
-        <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search Artist, Album, or Mood..." onkeypress="handleEnter(event)">
-            <button class="search-btn" id="searchButton" onclick="performSearch()">Go</button>
+    <div class="container">
+        <h1>🎵 Music Downloader</h1>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" 
+                   placeholder="Search for songs, artists, or albums...">
+            <button onclick="searchMusic()">Search</button>
         </div>
-    </header>
-
-    <div class="loader" id="loader"></div>
-    <div class="results" id="resultsList"></div>
-
-    <div class="player-bar" id="playerBar">
-        <div class="player-info">
-            <div class="player-text">
-                <div class="player-title" id="currentTitle">Not Playing</div>
-                <div class="player-artist" id="currentArtist">Select a song</div>
-            </div>
-        </div>
-        <div class="controls">
-            <button class="btn-ctrl btn-action" onclick="downloadCurrent()" title="Download Song" id="downloadBtn">⬇</button>
-            <button class="btn-ctrl" id="repeatBtn" onclick="toggleRepeat()" title="Repeat One">↻</button>
-            <button class="btn-ctrl" onclick="playPrevious()" title="Previous Song" id="prevBtn">⇤</button>
-            <button class="btn-ctrl play-btn" id="playPauseBtn" onclick="togglePlay()">▶</button>
-            <button class="btn-ctrl" onclick="playNext()" title="Next Song" id="nextBtn">⇥</button>
+        
+        <div id="results"></div>
+        
+        <div class="instructions">
+            <strong>How to use:</strong>
+            <ol>
+                <li>Search for any song or artist</li>
+                <li>Click "Download MP3" on any result</li>
+                <li>The song will download to your device</li>
+                <li>Play it using any music player</li>
+            </ol>
         </div>
     </div>
 
-    <audio id="audioPlayer" preload="none"></audio>
-
     <script>
-        const audio = document.getElementById('audioPlayer');
-        const playPauseBtn = document.getElementById('playPauseBtn');
-        const repeatBtn = document.getElementById('repeatBtn');
-        const playerBar = document.getElementById('playerBar');
-        const searchInput = document.getElementById('searchInput');
-        const searchButton = document.getElementById('searchButton');
-        const loader = document.getElementById('loader');
-        const resultsDiv = document.getElementById('resultsList');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        
-        // State
-        let currentQueue = [];
-        let currentIndex = -1;
-        let isRepeat = false;
-        let isSearching = false;
-        let errorDisplayed = false;
-
-        // Initialize button states
-        updateControlButtons();
-
-        function handleEnter(e) {
-            if (e.key === 'Enter') performSearch();
-        }
-
-        async function performSearch() {
-            const query = searchInput.value.trim();
-            if (!query || isSearching) return;
-
-            isSearching = true;
-            errorDisplayed = false;
-            resultsDiv.innerHTML = '';
-            loader.style.display = 'block';
-            searchInput.disabled = true;
-            searchButton.disabled = true;
-            searchButton.innerText = '...';
+        async function searchMusic() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
             
-            // Clear any previous error messages
-            const existingError = document.querySelector('.error-box');
-            if (existingError) existingError.remove();
-
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">Searching... ⏳</div>';
+            
             try {
                 const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+                const songs = await response.json();
                 
-                if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                loader.style.display = 'none';
-                searchButton.innerText = 'Go';
-
-                if (data.error || data.length === 0) {
-                    if (data.error) {
-                        showError(data.error);
-                    } else {
-                        resultsDiv.innerHTML = `
-                            <div class="message-box">
-                                <h3>No results found</h3>
-                                <p>Try a different search term</p>
-                            </div>
-                        `;
-                    }
-                    currentQueue = [];
-                    updateControlButtons();
+                if (songs.error) {
+                    resultsDiv.innerHTML = `<div class="error">${songs.error}</div>`;
                     return;
                 }
-
-                currentQueue = data;
-                updateControlButtons();
                 
-                data.forEach((track, index) => {
-                    const card = document.createElement('div');
-                    card.className = 'track-card';
-                    card.id = `card-${index}`;
-                    card.onclick = () => playTrack(index);
-                    card.innerHTML = `
-                        <img src="${track.thumbnail}" class="track-img" onerror="this.src='https://via.placeholder.com/60?text=Music'">
-                        <div class="track-info">
-                            <div class="track-title" title="${track.title}">${track.title}</div>
-                            <div class="track-artist" title="${track.uploader}">${track.uploader}</div>
+                if (songs.length === 0) {
+                    resultsDiv.innerHTML = '<div class="loading">No results found. Try different keywords.</div>';
+                    return;
+                }
+                
+                let html = '';
+                songs.forEach(song => {
+                    html += `
+                        <div class="song-item">
+                            <img src="${song.thumbnail}" class="thumbnail" 
+                                 onerror="this.src='https://via.placeholder.com/80x60?text=Music'">
+                            <div class="song-info">
+                                <div class="song-title">${song.title}</div>
+                                <div class="song-artist">${song.uploader} • ${song.duration}</div>
+                            </div>
+                            <button class="download-btn" onclick="downloadSong('${song.id}', '${song.title.replace(/'/g, "\\'")}')">
+                                Download MP3
+                            </button>
                         </div>
-                        <div class="track-duration">${track.duration}</div>
                     `;
-                    resultsDiv.appendChild(card);
                 });
-
-            } catch (err) {
-                loader.style.display = 'none';
-                searchButton.innerText = 'Go';
-                console.error('Search error:', err);
                 
-                if (!errorDisplayed) {
-                    showError(`Search failed: ${err.message}. Please try again.`);
-                    errorDisplayed = true;
-                }
+                resultsDiv.innerHTML = html;
                 
-                currentQueue = [];
-                updateControlButtons();
-            } finally {
-                isSearching = false;
-                searchInput.disabled = false;
-                searchButton.disabled = false;
-            }
-        }
-
-        function showError(message) {
-            const errorBox = document.createElement('div');
-            errorBox.className = 'error-box';
-            errorBox.innerHTML = `
-                <h3>Error</h3>
-                <p>${message}</p>
-                <p style="font-size: 12px; margin-top: 10px;">If this persists, try:</p>
-                <ul style="font-size: 12px; text-align: left; display: inline-block;">
-                    <li>Using a different search term</li>
-                    <li>Checking your internet connection</li>
-                    <li>Waiting a few moments and trying again</li>
-                </ul>
-            `;
-            resultsDiv.appendChild(errorBox);
-        }
-
-        function playTrack(index) {
-            if (index < 0 || index >= currentQueue.length) return;
-
-            // Update UI to show playing state
-            if (currentIndex !== -1) {
-                const oldCard = document.getElementById(`card-${currentIndex}`);
-                if (oldCard) oldCard.classList.remove('playing');
-            }
-            const newCard = document.getElementById(`card-${index}`);
-            if (newCard) newCard.classList.add('playing');
-
-            currentIndex = index;
-            const track = currentQueue[index];
-
-            document.getElementById('currentTitle').innerText = track.title;
-            document.getElementById('currentArtist').innerText = track.uploader;
-            playerBar.classList.add('active');
-            playPauseBtn.innerText = '...';
-            playPauseBtn.disabled = true;
-            
-            // Clear previous error
-            const existingError = document.querySelector('.error-box');
-            if (existingError) existingError.remove();
-
-            // Try to play the track
-            audio.src = `/stream?id=${track.id}`;
-            
-            // Add timeout for playback
-            const playTimeout = setTimeout(() => {
-                if (playPauseBtn.innerText === '...') {
-                    playPauseBtn.innerText = '▶';
-                    playPauseBtn.disabled = false;
-                    showError("Playback timeout. Try selecting the song again.");
-                }
-            }, 10000);
-            
-            audio.play().then(() => {
-                clearTimeout(playTimeout);
-                playPauseBtn.innerText = '⏸';
-                playPauseBtn.disabled = false;
-                updateMediaSession(track);
-                updateControlButtons();
-                
-                // Background pre-fetch next track (silent, no error handling)
-                if (index + 1 < currentQueue.length) {
-                    fetch(`/prefetch?id=${currentQueue[index + 1].id}`).catch(() => {});
-                }
-            }).catch(e => {
-                clearTimeout(playTimeout);
-                console.error("Playback failed:", e);
-                playPauseBtn.innerText = '▶';
-                playPauseBtn.disabled = false;
-                showError(`Playback error: ${e.message}. Try downloading instead.`);
-            });
-        }
-
-        function togglePlay() {
-            if (!audio.src) {
-                if (currentQueue.length > 0) {
-                    playTrack(0);
-                }
-                return;
-            }
-            
-            if (audio.paused) {
-                audio.play().catch(e => {
-                    console.error("Play error:", e);
-                    showError("Could not play. Try selecting the song again.");
-                });
-            } else {
-                audio.pause();
-            }
-        }
-
-        function playNext() {
-            if (currentIndex + 1 < currentQueue.length) {
-                playTrack(currentIndex + 1);
-            }
-        }
-
-        function playPrevious() {
-            if (currentIndex > 0) {
-                playTrack(currentIndex - 1);
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        Search failed. Trying fallback songs...
+                    </div>
+                `;
+                // Show fallback songs
+                showFallbackSongs();
             }
         }
         
-        function downloadCurrent() {
-            if (currentIndex === -1 || !currentQueue[currentIndex]) {
-                showError("No song selected. Please search and select a song first.");
-                return;
-            }
-            const track = currentQueue[currentIndex];
+        function downloadSong(videoId, title) {
+            // Clean title for filename
+            const cleanTitle = title.replace(/[^\w\s-]/g, '');
             
-            // Show downloading state
-            const originalText = downloadBtn.innerHTML;
-            downloadBtn.innerHTML = '⌛';
-            downloadBtn.disabled = true;
+            // Show downloading message
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `<div class="loading">Preparing download for "${cleanTitle}"... ⏳</div>`;
             
-            // Trigger download
-            window.location.href = `/download?id=${track.id}&title=${encodeURIComponent(track.title)}`;
+            // Open download in new tab
+            window.open(`/download?id=${videoId}&title=${encodeURIComponent(cleanTitle)}`, '_blank');
             
-            // Reset button after 3 seconds
+            // Restore results after 2 seconds
             setTimeout(() => {
-                downloadBtn.innerHTML = originalText;
-                downloadBtn.disabled = false;
-            }, 3000);
+                const currentQuery = document.getElementById('searchInput').value;
+                if (currentQuery) searchMusic();
+            }, 2000);
         }
-
-        function toggleRepeat() {
-            isRepeat = !isRepeat;
-            repeatBtn.classList.toggle('active', isRepeat);
-        }
-
-        function updateControlButtons() {
-            const hasTracks = currentQueue.length > 0;
-            const hasPrevious = currentIndex > 0;
-            const hasNext = currentIndex < currentQueue.length - 1 && currentQueue.length > 0;
+        
+        function showFallbackSongs() {
+            const fallbackSongs = [
+                {
+                    id: 'dQw4w9WgXcQ',
+                    title: 'Never Gonna Give You Up',
+                    uploader: 'Rick Astley',
+                    thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+                    duration: '3:33'
+                },
+                {
+                    id: 'kJQP7kiw5Fk',
+                    title: 'Despacito',
+                    uploader: 'Luis Fonsi',
+                    thumbnail: 'https://i.ytimg.com/vi/kJQP7kiw5Fk/hqdefault.jpg',
+                    duration: '4:41'
+                }
+            ];
             
-            prevBtn.disabled = !hasPrevious;
-            nextBtn.disabled = !hasNext;
-            downloadBtn.disabled = currentIndex === -1;
+            let html = '';
+            fallbackSongs.forEach(song => {
+                html += `
+                    <div class="song-item">
+                        <img src="${song.thumbnail}" class="thumbnail">
+                        <div class="song-info">
+                            <div class="song-title">${song.title}</div>
+                            <div class="song-artist">${song.uploader} • ${song.duration}</div>
+                        </div>
+                        <button class="download-btn" onclick="downloadSong('${song.id}', '${song.title}')">
+                            Download MP3
+                        </button>
+                    </div>
+                `;
+            });
             
-            // Visual feedback for disabled buttons
-            prevBtn.style.opacity = hasPrevious ? '1' : '0.5';
-            nextBtn.style.opacity = hasNext ? '1' : '0.5';
-            downloadBtn.style.opacity = currentIndex !== -1 ? '1' : '0.5';
+            document.getElementById('results').innerHTML = html;
         }
-
-        // --- Event Listeners ---
-        audio.addEventListener('ended', () => {
-            if (isRepeat) {
-                audio.currentTime = 0;
-                audio.play().catch(e => console.error("Repeat play error:", e));
-            } else {
-                playNext();
-            }
-        });
-
-        audio.addEventListener('playing', () => { 
-            playPauseBtn.innerText = '⏸'; 
+        
+        // Allow Enter key to search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchMusic();
         });
         
-        audio.addEventListener('pause', () => { 
-            playPauseBtn.innerText = '▶'; 
-        });
-
-        audio.addEventListener('error', (e) => {
-            console.error("Audio element error:", e);
-            playPauseBtn.innerText = '▶';
-            playPauseBtn.disabled = false;
-            
-            // Show error but don't spam
-            if (!errorDisplayed) {
-                showError("Audio playback error. The server might be having issues. Try downloading the song instead.");
-                errorDisplayed = true;
-            }
-        });
-
-        // Media Session API
-        function updateMediaSession(track) {
-            if ('mediaSession' in navigator) {
-                try {
-                    navigator.mediaSession.metadata = new MediaMetadata({
-                        title: track.title,
-                        artist: track.uploader,
-                        artwork: [
-                            { src: track.thumbnail, sizes: '96x96', type: 'image/jpeg' },
-                            { src: track.thumbnail, sizes: '128x128', type: 'image/jpeg' },
-                            { src: track.thumbnail, sizes: '192x192', type: 'image/jpeg' },
-                            { src: track.thumbnail, sizes: '256x256', type: 'image/jpeg' },
-                            { src: track.thumbnail, sizes: '384x384', type: 'image/jpeg' },
-                            { src: track.thumbnail, sizes: '512x512', type: 'image/jpeg' }
-                        ]
-                    });
-                    
-                    navigator.mediaSession.setActionHandler('play', () => audio.play());
-                    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
-                    navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-                    navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
-                    navigator.mediaSession.setActionHandler('seekbackward', () => {
-                        audio.currentTime = Math.max(0, audio.currentTime - 10);
-                    });
-                    navigator.mediaSession.setActionHandler('seekforward', () => {
-                        audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
-                    });
-                } catch (e) {
-                    console.warn("Media Session API not fully supported:", e);
-                }
-            }
-        }
-
-        // Initial welcome message
-        window.addEventListener('DOMContentLoaded', () => {
-            resultsDiv.innerHTML = `
-                <div class="message-box">
-                    <h3>Welcome to The Daily Streamer</h3>
-                    <p>Search for any artist, album, or song to start streaming</p>
-                    <p style="font-size: 14px; margin-top: 20px; color: var(--accent);">
-                        Tip: Try searching for "classic rock", "jazz", or your favorite artist
-                    </p>
-                </div>
-            `;
-        });
+        // Initial load - show instructions
+        document.getElementById('results').innerHTML = `
+            <div class="loading">
+                <p>Search for music above to get started!</p>
+                <p style="margin-top: 10px; color: #667eea;">
+                    Examples: "pop music", "classic rock", "jazz", or your favorite artist
+                </p>
+            </div>
+        `;
     </script>
 </body>
 </html>
