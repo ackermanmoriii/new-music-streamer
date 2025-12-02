@@ -11,15 +11,38 @@ SEARCH_OPTS = {
     "extract_flat": True,
     "noplaylist": True,
     "quiet": True,
-    "geo_bypass": True
+    "geo_bypass": True,
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
+        "Referer": "https://www.youtube.com/"
+    },
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android"]
+        }
+    }
 }
+
 
 DIRECT_OPTS = {
     "format": "bestaudio/best",
     "noplaylist": True,
     "quiet": True,
-    "geo_bypass": True
+    "geo_bypass": True,
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Sec-Fetch-Mode": "navigate",
+        "Referer": "https://www.youtube.com/"
+    },
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android"]
+        }
+    }
 }
+
 
 # Caches to reduce API usage & improve speed
 search_cache = {}
