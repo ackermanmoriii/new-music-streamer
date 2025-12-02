@@ -19,9 +19,11 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            display:flex;
+            gap:10px;
         }
         input {
-            width: 70%;
+            flex:1;
             padding: 12px;
             border-radius: 8px;
             border: none;
@@ -63,6 +65,7 @@
             border-top: 1px solid #444;
             transform: translateY(100%);
             transition: .3s;
+            justify-content: space-between;
         }
         .player-bar.active {
             transform: translateY(0);
@@ -111,6 +114,9 @@ const playPauseBtn = document.getElementById("playPauseBtn");
 const playerBar = document.getElementById("playerBar");
 
 
+// ================================
+// SEARCH
+// ================================
 async function performSearch() {
     const q = document.getElementById("searchInput").value.trim();
     if (!q) return;
@@ -146,6 +152,9 @@ async function performSearch() {
 }
 
 
+// ================================
+// ** MOBILE-FIXED PLAY FUNCTION **
+// ================================
 async function playTrack(track) {
     document.getElementById("currentTitle").innerText = track.title;
     document.getElementById("currentArtist").innerText = track.uploader;
@@ -155,6 +164,7 @@ async function playTrack(track) {
     playPauseBtn.innerText = "...";
 
     try {
+        // 1. Get direct GoogleVideo URL
         const r = await fetch(`/direct?id=${track.id}`);
         const data = await r.json();
 
@@ -164,16 +174,37 @@ async function playTrack(track) {
             return;
         }
 
-        audio.src = data.url;
+        const realUrl = data.url;
+
+        // 2. Fetch audio with REQUIRED HEADERS for mobile playback
+        const response = await fetch(realUrl, {
+            headers: {
+                "User-Agent": navigator.userAgent,
+                "Referer": "https://www.youtube.com/"
+            }
+        });
+
+        // 3. Convert to Blob so mobile can play it
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        // 4. Play the blob
+        audio.src = blobUrl;
         await audio.play();
+
         playPauseBtn.innerText = "⏸";
 
-    } catch (e) {
-        alert("Playback failed");
+    } catch (err) {
+        console.error("Playback error:", err);
+        alert("Playback failed on mobile.");
         playPauseBtn.innerText = "▶";
     }
 }
 
+
+// ================================
+// PLAY / PAUSE CONTROLS
+// ================================
 function togglePlay() {
     if (audio.paused) audio.play();
     else audio.pause();
