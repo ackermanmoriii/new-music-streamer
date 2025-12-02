@@ -5,37 +5,41 @@ from threading import Lock
 import requests
 import sys
 import os
+import traceback
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import quote
 
 app = Flask(__name__)
 
 # --- FIX: Use environment port for Koyeb ---
-PORT = int(os.environ.get('PORT', 5001))
+PORT = int(os.environ.get('PORT', 8000))
 
-# --- OPTIMIZED CONFIGURATION ---
-YDL_SEARCH_OPTS = {
-    'format': 'bestaudio/best',
-    'extract_flat': True,
+# --- OPTIMIZED CONFIGURATION FOR KOYEB ---
+# Simpler options that work better with server environments
+YDL_OPTS = {
+    'format': 'bestaudio[filesize<30M]/bestaudio/best',
     'noplaylist': True,
     'quiet': True,
     'no_warnings': True,
     'geo_bypass': True,
-    'extractor_args': {'youtube': {'player_client': ['android']}},  # Use android client for mobile compatibility
-    'socket_timeout': 30,
-}
-
-YDL_STREAM_OPTS = {
-    'format': 'bestaudio[filesize<50M]/bestaudio/best',  # Limit file size
-    'noplaylist': True,
-    'quiet': True,
-    'no_warnings': True,
-    'geo_bypass': True,
-    'extractor_args': {'youtube': {'player_client': ['android']}},
+    'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     'socket_timeout': 30,
     'http_headers': {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-us,en;q=0.5',
+        'Accept-Encoding': 'gzip,deflate',
+        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+        'Connection': 'keep-alive',
+    },
+    'cookiefile': 'cookies.txt'  # Optional: helps with age-restricted content
 }
+
+# Use the same options for both search and stream to simplify
+YDL_SEARCH_OPTS = YDL_OPTS.copy()
+YDL_SEARCH_OPTS['extract_flat'] = True
+
+YDL_STREAM_OPTS = YDL_OPTS.copy()
 
 # --- PERFORMANCE ENHANCEMENTS ---
 search_cache = {}
@@ -51,40 +55,76 @@ def format_duration(seconds):
     try:
         seconds = int(seconds)
         m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        if h > 0:
+            return f"{h}:{m:02d}:{s:02d}"
         return f"{m}:{s:02d}"
     except: return str(seconds)
 
+def safe_extract(video_id):
+    """Safer extraction with multiple fallbacks"""
+    fallback_urls = [
+        f"https://www.youtube.com/watch?v={video_id}",
+        f"https://youtube.com/watch?v={video_id}",
+        f"https://youtu.be/{video_id}"
+    ]
+    
+    for url in fallback_urls:
+        try:
+            print(f"Trying to extract from: {url}")
+            with yt_dlp.YoutubeDL(YDL_STREAM_OPTS) as ydl:
+                info = ydl.extract_info(url, download=False)
+                
+                # Get the audio URL
+                if 'url' in info:
+                    audio_url = info['url']
+                    print(f"Successfully extracted URL for {video_id}")
+                    
+                    # Cache it
+                    with cache_lock:
+                        url_cache[video_id] = {'url': audio_url, 'time': time.time()}
+                    
+                    return audio_url
+                else:
+                    # Try to find audio in formats
+                    formats = info.get('formats', [])
+                    audio_formats = [f for f in formats if f.get('vcodec') == 'none' and f.get('acodec') != 'none']
+                    
+                    if audio_formats:
+                        # Prefer m4a format for better browser compatibility
+                        m4a_formats = [f for f in audio_formats if f.get('ext') == 'm4a']
+                        if m4a_formats:
+                            audio_url = m4a_formats[0]['url']
+                        else:
+                            audio_url = audio_formats[0]['url']
+                        
+                        print(f"Found audio format for {video_id}")
+                        
+                        with cache_lock:
+                            url_cache[video_id] = {'url': audio_url, 'time': time.time()}
+                        
+                        return audio_url
+        except Exception as e:
+            print(f"Failed with {url}: {str(e)[:100]}")
+            continue
+    
+    return None
+
 def get_or_extract_audio_url(video_id):
     """Simplified and more robust URL extraction"""
+    # Check cache first
     with cache_lock:
         if video_id in url_cache:
             cache_data = url_cache[video_id]
-            if time.time() - cache_data['time'] < 14400:  # 4 hours
+            if time.time() - cache_data['time'] < 7200:  # 2 hours cache
                 return cache_data['url']
-
+    
     # Extract with timeout protection
     try:
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        with yt_dlp.YoutubeDL(YDL_STREAM_OPTS) as ydl:
-            info = ydl.extract_info(url, download=False)
-            
-            # Get the best audio URL (not necessarily the first one)
-            formats = info.get('formats', [])
-            audio_formats = [f for f in formats if f.get('vcodec') == 'none']
-            
-            if audio_formats:
-                # Prefer smaller files for streaming
-                audio_formats.sort(key=lambda x: x.get('filesize', float('inf')))
-                real_audio_url = audio_formats[0]['url']
-            else:
-                real_audio_url = info['url']
-            
-            with cache_lock:
-                url_cache[video_id] = {'url': real_audio_url, 'time': time.time()}
-            
-            return real_audio_url
+        return safe_extract(video_id)
     except Exception as e:
-        print(f"Extraction failed: {e}")
+        print(f"Extraction failed for {video_id}: {e}")
+        traceback.print_exc()
         return None
 
 def background_extract_task(video_id):
@@ -122,19 +162,19 @@ def search():
 
     # Perform search with timeout
     try:
-        search_query = f"ytsearch10:{query}"  # Limit to 10 results
+        search_query = f"ytsearch5:{query}"  # Limit to 5 results for speed
         
         with yt_dlp.YoutubeDL(YDL_SEARCH_OPTS) as ydl:
             result = ydl.extract_info(search_query, download=False)
             results = []
             
-            if 'entries' in result:
-                for entry in result['entries'][:5]:  # Only take top 5
+            if result and 'entries' in result:
+                for entry in result['entries']:
                     if entry:
                         results.append({
                             'id': entry['id'],
-                            'title': entry['title'][:100],  # Limit title length
-                            'uploader': entry.get('uploader', 'Unknown')[:50],
+                            'title': entry['title'][:80],  # Limit title length
+                            'uploader': entry.get('uploader', 'Unknown')[:40],
                             'thumbnail': f"https://i.ytimg.com/vi/{entry['id']}/hqdefault.jpg",
                             'duration': format_duration(entry.get('duration'))
                         })
@@ -146,33 +186,63 @@ def search():
             
     except Exception as e:
         print(f"Search error: {e}")
-        return jsonify({'error': 'Search failed', 'details': str(e)}), 500
+        traceback.print_exc()
+        return jsonify({'error': 'Search failed', 'details': str(e)[:100]}), 500
 
 @app.route('/stream')
 def stream():
-    """Stream with chunked transfer encoding"""
+    """Stream with better error handling and compatibility"""
     video_id = request.args.get('id')
     if not video_id: 
-        return "No ID", 400
+        return jsonify({'error': 'No ID provided'}), 400
 
+    print(f"Stream request for video ID: {video_id}")
+    
     real_audio_url = get_or_extract_audio_url(video_id)
     if not real_audio_url:
-        return "Error extracting stream", 500
+        print(f"No audio URL found for {video_id}")
+        return jsonify({'error': 'Could not extract audio URL'}), 500
 
     try:
-        # Stream with smaller chunks for better performance
-        req = requests.get(real_audio_url, stream=True, timeout=30)
+        print(f"Proxying stream from: {real_audio_url[:100]}...")
         
+        # Stream with smaller chunks for better performance
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Encoding': 'identity',  # Important: disable compression for streaming
+            'Range': 'bytes=0-',  # Support range requests
+        }
+        
+        req = requests.get(real_audio_url, stream=True, timeout=30, headers=headers)
+        
+        if req.status_code != 200:
+            print(f"Upstream returned {req.status_code}")
+            return jsonify({'error': f'Upstream error: {req.status_code}'}), 500
+
         def generate():
-            chunk_size = 1024 * 32  # 32KB chunks
-            for chunk in req.iter_content(chunk_size=chunk_size):
-                if chunk:
-                    yield chunk
+            chunk_size = 1024 * 16  # 16KB chunks
+            try:
+                for chunk in req.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        yield chunk
+            except Exception as e:
+                print(f"Stream generation error: {e}")
+
+        # Determine content type
+        content_type = req.headers.get('content-type', 'audio/mpeg')
+        if 'm4a' in real_audio_url or 'mp4' in real_audio_url:
+            content_type = 'audio/mp4'
+        elif 'webm' in real_audio_url:
+            content_type = 'audio/webm'
 
         response_headers = {
-            'Content-Type': req.headers.get('content-type', 'audio/mpeg'),
-            'Cache-Control': 'public, max-age=3600',
-            'Accept-Ranges': 'bytes'
+            'Content-Type': content_type,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Accept-Ranges': 'bytes',
+            'Content-Length': req.headers.get('content-length', ''),
         }
 
         return Response(
@@ -182,9 +252,13 @@ def stream():
             direct_passthrough=True
         )
         
+    except requests.exceptions.Timeout:
+        print(f"Stream timeout for {video_id}")
+        return jsonify({'error': 'Stream timeout'}), 500
     except Exception as e:
-        print(f"Stream error: {e}")
-        return f"Stream failed: {str(e)}", 500
+        print(f"Stream error for {video_id}: {e}")
+        traceback.print_exc()
+        return jsonify({'error': f'Stream failed: {str(e)[:100]}'}), 500
 
 @app.route('/download')
 def download():
@@ -193,22 +267,26 @@ def download():
     title = request.args.get('title', 'track')
     
     if not video_id: 
-        return "No ID", 400
+        return jsonify({'error': 'No ID provided'}), 400
 
     real_audio_url = get_or_extract_audio_url(video_id)
     if not real_audio_url:
-        return "Error extracting download link", 500
+        return jsonify({'error': 'Could not extract audio URL'}), 500
 
     try:
-        req = requests.get(real_audio_url, stream=True, timeout=60)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        req = requests.get(real_audio_url, stream=True, timeout=60, headers=headers)
         
         def generate():
             for chunk in req.iter_content(chunk_size=8192):
                 if chunk:
                     yield chunk
 
-        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
-        filename = f"{safe_title}.mp3" if safe_title else "audio.mp3"
+        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip() or 'audio'
+        filename = f"{safe_title}.mp3"
         
         response = Response(generate(), content_type='audio/mpeg')
         response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -218,7 +296,17 @@ def download():
         
     except Exception as e:
         print(f"Download error: {e}")
-        return f"Download failed", 500
+        traceback.print_exc()
+        return jsonify({'error': 'Download failed'}), 500
+
+@app.route('/health')
+def health():
+    """Health check endpoint for Koyeb"""
+    return jsonify({'status': 'healthy', 'timestamp': time.time()})
 
 if __name__ == '__main__':
+    # Create cookies.txt if it doesn't exist (empty file)
+    if not os.path.exists('cookies.txt'):
+        open('cookies.txt', 'w').close()
+    
     app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
