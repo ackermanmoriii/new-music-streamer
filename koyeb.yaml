@@ -15,7 +15,8 @@ services:
       - path: /
     build:
       buildpack: python
-      command: pip install -r requirements.txt
+      command: |
+        apt-get update && apt-get install -y ffmpeg libavcodec-extra
+        pip install --no-cache-dir -r requirements.txt
     run: |
-      apt-get update && apt-get install -y ffmpeg
       gunicorn --workers=2 --threads=4 --bind=0.0.0.0:$PORT app:app
